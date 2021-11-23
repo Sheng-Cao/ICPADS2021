@@ -1,0 +1,113 @@
+version: '2.2'
+
+networks:
+  local-ilp:
+    external:
+      name: local-ilp
+
+services:
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - local-ilp
+
+  alice-eth:
+    image: interledgerrs/ilp-settlement-ethereum:latest
+    container_name: alice-eth
+    environment:
+      - RUST_LOG=interledger=trace
+    command: --private_key 634a26088dfa48b74275f53867b9b0cb3ba723bd82b27f5db2af1575b31323e2 --confirmations 0 --poll_frequency 1000 --ethereum_url http://172.17.0.1:8545 --connector_url http://alice-node:7771 --redis_url redis://redis:6379/0 --asset_scale 9 --settlement_api_bind_address 0.0.0.0:3000
+    ports:
+      - "3000:3000"
+    networks:
+      - local-ilp
+    depends_on:
+      - redis
+
+  alice-node:
+    image: interledgerrs/ilp-node:latest
+    container_name: alice-node
+    environment:
+      - RUST_LOG=interledger=trace
+    command: --ilp_address example.alice --secret_seed 8852500887504328225458511465394229327394647958135038836332350604 --admin_auth_token hi_alice --redis_url redis://redis:6379/1 --http_bind_address 0.0.0.0:7770 --settlement_api_bind_address 0.0.0.0:7771 --exchange_rate.provider CoinCap
+    ports:
+      - "7770:7770"
+      - "7771:7771"
+    networks:
+      - local-ilp
+    depends_on:
+      - redis
+
+  bob-eth:
+    image: interledgerrs/ilp-settlement-ethereum:latest
+    container_name: bob-eth
+    environment:
+      - RUST_LOG=interledger=trace
+    command: --private_key 64921654b412210f54d113185cba537a9a414140652ae0708a654e677642e78e --confirmations 0 --poll_frequency 1000 --ethereum_url http://172.17.0.1:8545 --connector_url http://bob-node:7771 --redis_url redis://redis:6379/2 --asset_scale 9 --settlement_api_bind_address 0.0.0.0:3000
+    ports:
+      - "4000:3000"
+    networks:
+      - local-ilp
+    depends_on:
+      - redis
+
+  bob-xrp:
+    image: interledgerjs/settlement-xrp:latest
+    container_name: bob-xrp
+    environment:
+      - DEBUG=settlement*
+      - CONNECTOR_URL=http://bob-node:7771
+      - REDIS_URI=redis://redis:6379/3
+      - ENGINE_PORT=3001
+    ports:
+      - "3001:3001"
+    networks:
+      - local-ilp
+    depends_on:
+      - redis
+
+  bob-node:
+    image: interledgerrs/ilp-node:latest
+    container_name: bob-node
+    environment:
+      - RUST_LOG=interledger=trace
+    command: --ilp_address example.bob --secret_seed 1604966725982139900555208458637022875563691455429373719368053354 --admin_auth_token hi_bob --redis_url redis://redis:6379/4 --http_bind_address 0.0.0.0:7770 --settlement_api_bind_address 0.0.0.0:7771 --exchange_rate.provider CoinCap
+    ports:
+      - "8770:7770"
+      - "8771:7771"
+    networks:
+      - local-ilp
+    depends_on:
+      - redis
+
+  charlie-xrp:
+    image: interledgerjs/settlement-xrp:latest
+    container_name: charlie-xrp
+    environment:
+      - DEBUG=settlement*
+      - CONNECTOR_URL=http://charlie-node:7771
+      - REDIS_URI=redis://redis:6379/5
+      - ENGINE_PORT=3000
+    ports:
+      - "3002:3000"
+    networks:
+      - local-ilp
+    depends_on:
+      - redis
+
+  charlie-node:
+    image: interledgerrs/ilp-node:latest
+    container_name: charlie-node
+    environment:
+      - RUST_LOG=interledger=trace
+    command: --ilp_address example.charlie --secret_seed 1232362131122139900555208458637022875563691455429373719368053354 --admin_auth_token hi_charlie --redis_url redis://redis:6379/6 --http_bind_address 0.0.0.0:7770 --settlement_api_bind_address 0.0.0.0:7771 --exchange_rate.provider CoinCap
+    ports:
+      - "9770:7770"
+      - "9771:7771"
+    networks:
+      - local-ilp
+    depends_on:
+      - redis
